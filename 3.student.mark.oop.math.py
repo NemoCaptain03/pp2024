@@ -1,5 +1,6 @@
 from datetime import datetime
 import math
+import numpy as np
 
 
 class Student:
@@ -9,22 +10,21 @@ class Student:
         self.dob = dob
         self.marks = {}
 
-    def add_mark(self, course_id, mark):
-        self.marks[course_id] = math.floor(mark * 10) / 10
+    def add_mark(self, course_id, mark, credits):
+        self.marks[course_id] = {'mark': math.floor(mark * 10) / 10, 'credits': credits}
 
-    def calculate_gpa(self, courses):
-        marks = [self.marks.get(course_id, 0) for course_id in courses]
-
-        if not marks:
+    def calculate_gpa(self):
+        if not self.marks:
             return 0
 
-        total_credits = len(marks)
-        weighted_sum = sum(marks)
+        mark_credits = np.array([(mark_info['mark'], mark_info['credits']) for mark_info in self.marks.values()], dtype=object)
+        total_credits = np.sum(mark_credits[:, 1])
+        weighted_sum = np.sum(mark_credits[:, 0] * mark_credits[:, 1])
 
         return weighted_sum / total_credits
 
     def __str__(self):
-        return f'Student ID: {self.id}, Student Name: {self.name}, GPA: {self.calculate_gpa(self.marks.keys()):.1f}'
+        return f'Student ID: {self.id}, Student Name: {self.name}, GPA: {self.calculate_gpa():.1f}'
 
 
 class Course:
@@ -60,23 +60,23 @@ class Menu:
         for _ in range(num_courses):
             course_id = input('Enter course ID: ')
             course_name = input('Enter course name: ')
-            course = Course(course_id, course_name)
-            self.courses.append(course)
+            self.courses.append(Course(course_id, course_name))
 
     def input_marks(self):
         student_id = input('Enter student ID: ')
         course_id = input('Enter course ID: ')
         try:
             mark = float(input('Enter the mark for the student in this course (1-20): '))
+            credits = float(input('Enter the credits for this course: '))
         except ValueError:
-            print('Invalid mark format. Please enter a number.')
+            print('Invalid input format. Please enter valid numbers.')
             return
 
         student = next((s for s in self.students if s.id == student_id), None)
         course = next((c for c in self.courses if c.id == course_id), None)
 
         if student and course:
-            student.add_mark(course_id, mark)
+            student.add_mark(course_id, mark, credits)
             print('Mark added successfully.')
         else:
             print('Student or course not found.')
@@ -87,9 +87,8 @@ class Menu:
             print(course)
 
     def list_students(self):
-        std_sorted = sorted(self.students, key=lambda s: s.calculate_gpa(self.courses), reverse=True)
-        print('\nList of Students (Sorted by GPA - Descending):')
-        for student in std_sorted:
+        print('\nList of Students:')
+        for student in self.students:
             print(student)
 
     def show_marks(self):
@@ -100,7 +99,8 @@ class Menu:
             print(f'\nMarks for Course ID {course_id} - {course.name}:')
             for student in self.students:
                 if course_id in student.marks:
-                    print(f'{student}, Mark: {student.marks[course_id]}')
+                    mark_info = student.marks[course_id]
+                    print(f'{student}, Mark: {mark_info["mark"]}, Credits: {mark_info["credits"]}')
             else:
                 print('No marks found for the given course.')
         else:
